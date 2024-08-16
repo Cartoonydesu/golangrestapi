@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 	"log"
 	"log/slog"
 	"net/http"
@@ -23,7 +24,7 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
-	connStr := "postgres://postgres:1234@127.0.0.1:5432/postgres?sslmode=disable"
+	connStr := "postgres://postgres:1234@127.0.0.1:5432/app?sslmode=disable"
 	var err error
 	db, err := sql.Open("postgres", connStr)
 	if err != nil {
@@ -36,7 +37,8 @@ func main() {
 	h := &handler{db: db}
 	router := gin.Default()
 	router.GET("/ping", getPing)
-	router.GET("/api/v1/skill", h.GetAllSkills)
+	router.GET("/api/v1/skills", h.getAllSkills)
+	router.GET("/api/v1/skills/:key", h.getSkillById)
 
 	srv := http.Server{
 		Addr:        ":" + os.Getenv("PORT"),
@@ -83,10 +85,20 @@ type Skill struct {
 	Tags        []string `json:"tags"`
 }
 
-func (h *handler) GetAllSkills(context *gin.Context) {
+type Successres struct {
+	Status string `json:"status"`
+	Data   any    `json:"data"`
+}
+
+type Failres struct {
+	Status  string `json:"status"`
+	Message string `json:"message"`
+}
+
+func (h *handler) getAllSkills(context *gin.Context) {
 	rows, err := h.db.Query("SELECT key, name, description, logo, tags FROM skill;")
 	if err != nil {
-		context.JSON(http.StatusBadRequest, gin.H{"message": "get all skill"})
+		context.JSON(http.StatusBadRequest, gin.H{"message": err})
 		return
 	}
 	defer rows.Close()
@@ -100,5 +112,19 @@ func (h *handler) GetAllSkills(context *gin.Context) {
 		}
 		skills = append(skills, s)
 	}
-	context.JSON(http.StatusOK, skills)
+	context.JSON(http.StatusOK, Successres{"success", skills})
+}
+
+func (h *handler) getSkillById(context *gin.Context) {
+	paramkey := context.Param("key")
+	slog.Info(paramkey)
+	row := h.db.QueryRow(fmt.Sprintf("SELECT key, name, description, logo, tags FROM skill WHERE key = '%v';", paramkey))
+	var s Skill
+	err := row.Scan(&s.Key, &s.Name, &s.Description, &s.Logo, pq.Array(&s.Tags))
+	if err != nil {
+		// TODO error
+		context.JSON(http.StatusBadRequest, err)
+		return
+	}
+	context.JSON(http.StatusOK, s)
 }
