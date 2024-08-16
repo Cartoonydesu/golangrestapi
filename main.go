@@ -138,11 +138,30 @@ func (h *handler) getSkillById(context *gin.Context) {
 		context.JSON(http.StatusBadRequest, err)
 		return
 	}
-	context.JSON(http.StatusOK, s)
+	context.JSON(http.StatusOK, Successres{"success", s})
 }
 
 func (h *handler) createSkill(context *gin.Context) {
-
+	var newSkill Skill
+	err := context.BindJSON(&newSkill)
+	if err != nil {
+		//TODO error
+		context.JSON(http.StatusBadRequest, err)
+		return
+	}
+	stmt, err := h.db.Prepare("INSERT INTO skill (key, name, description, logo, tags) VALUES ($1, $2, $3, $4, $5) returning key;")
+	if err != nil {
+		context.JSON(http.StatusBadRequest, err)
+		//TODO error
+		return
+	}
+	defer stmt.Close()
+	if _, err := stmt.Exec(newSkill.Key, newSkill.Name, newSkill.Description, newSkill.Logo, pq.Array(newSkill.Tags)); err != nil {
+		context.JSON(http.StatusBadRequest, err)
+		//TODO error
+		return
+	}
+	context.JSON(http.StatusOK, Successres{"success", newSkill})
 }
 
 func (h *handler) updateSkill(context *gin.Context) {
