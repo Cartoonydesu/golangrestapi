@@ -36,9 +36,8 @@ func main() {
 	}
 	h := &handler{db: db}
 	router := gin.Default()
-	router.GET("/ping", getPing)
-	router.GET("/api/v1/skills", h.getAllSkills)
-	router.GET("/api/v1/skills/:key", h.getSkillById)
+
+	setRouter(router, h)
 
 	srv := http.Server{
 		Addr:        ":" + os.Getenv("PORT"),
@@ -95,6 +94,19 @@ type Failres struct {
 	Message string `json:"message"`
 }
 
+func setRouter(router *gin.Engine, h *handler) {
+	router.GET("/ping", getPing)
+	router.GET("/api/v1/skills", h.getAllSkills)
+	router.GET("/api/v1/skills/:key", h.getSkillById)
+	router.POST("/api/v1/skills", h.createSkill)
+	router.PUT("/api/v1/skills/:key", h.updateSkill)
+	router.PATCH("/api/v1/skills/:key/action/name", h.updateSkillName)
+	router.PATCH("/api/v1/skills/:key/action/description", h.updateSkillDescription)
+	router.PATCH("/api/v1/skills/:key/action/logo", h.updateSkillLogo)
+	router.PATCH("/api/v1/skills/:key/action/tags", h.updateSkillTags)
+	router.DELETE("/api/v1/skills/:key", h.deleteSkill)
+}
+
 func (h *handler) getAllSkills(context *gin.Context) {
 	rows, err := h.db.Query("SELECT key, name, description, logo, tags FROM skill;")
 	if err != nil {
@@ -127,4 +139,32 @@ func (h *handler) getSkillById(context *gin.Context) {
 		return
 	}
 	context.JSON(http.StatusOK, s)
+}
+
+func (h *handler) createSkill(context *gin.Context) {
+
+}
+
+func (h *handler) updateSkill(context *gin.Context) {
+
+}
+
+func (h *handler) updateSkillName(context *gin.Context) {
+
+}
+
+func (h *handler) updateSkillDescription(context *gin.Context) {
+
+}
+
+func (h *handler) updateSkillLogo(context *gin.Context) {
+
+}
+
+func (h *handler) updateSkillTags(context *gin.Context) {
+
+}
+
+func (h *handler) deleteSkill(context *gin.Context) {
+
 }
