@@ -185,5 +185,17 @@ func (h *handler) updateSkillTags(context *gin.Context) {
 }
 
 func (h *handler) deleteSkill(context *gin.Context) {
-
+	paramkey := context.Param("key")
+	stmt, err := h.db.Prepare("DELETE FROM skill WHERE key = $1;")
+	if err != nil {
+		context.JSON(http.StatusBadRequest, err)
+		//TODO error
+		return
+	}
+	defer stmt.Close()
+	if _, err := stmt.Exec(paramkey); err != nil {
+		context.JSON(http.StatusBadRequest, Failres{"success", "Skill deleted"})
+		return
+	}
+	context.JSON(http.StatusOK, Successres{"success", "Skill deleted"})
 }
