@@ -36,7 +36,7 @@ func GetPing(context *gin.Context) {
 
 func (h *Handler) GetAllSkills(context *gin.Context) {
 	rows, err := h.Db.Query("SELECT key, name, description, logo, tags FROM skill;")
-	if err != nil {
+	if err != nil || rows.Err() != nil {
 		context.JSON(http.StatusBadRequest, response.Fail{Status: "error", Message: "Can not get all skill"})
 		return
 	}
@@ -147,7 +147,6 @@ func (h *Handler) UpdateSkillDescription(context *gin.Context) {
 		return
 	}
 	defer stmt.Close()
-	fmt.Print("what")
 	if _, err := stmt.Exec(description.Description, paramkey); err != nil {
 		context.JSON(http.StatusBadRequest, response.Fail{Status: "error", Message: "Not be able to update description"})
 		return

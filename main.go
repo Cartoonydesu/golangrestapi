@@ -20,17 +20,15 @@ import (
 func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
-	// slog.Info(os.Getenv("POSTGRES_URI"))
 	connStr := os.Getenv("POSTGRES_URI")
-	// connStr := "postgres://postgres:1234@127.0.0.1:5432/app?sslmode=disable"
 	var err error
 	db, err := sql.Open("postgres", connStr)
 	if err != nil {
-		log.Fatal(err)
+		log.Panic(err)
 	}
 	defer db.Close()
 	if err = db.Ping(); err != nil {
-		log.Fatal(err)
+		log.Panic(err)
 	}
 	h := &skill.Handler{Db: db}
 	router := gin.Default()
@@ -51,7 +49,7 @@ func main() {
 	}()
 	if err := srv.ListenAndServe(); err != nil {
 		if !errors.Is(err, http.ErrServerClosed) {
-			log.Fatal(err)
+			log.Panic(err)
 		}
 	}
 	slog.Info("bye")
