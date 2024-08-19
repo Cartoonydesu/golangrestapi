@@ -11,7 +11,7 @@ package main
 // func (h *handler) GetSkill() {
 // 	rows, err = h.db.Query("SELECT key, name, description, logo, tags FROM skill;")
 // 	if err != nil {
-// 		context.JSON(http.StatusBadRequest, gin.H{"message": "get all skill"})
+// 		c.JSON(http.StatusBadRequest, gin.H{"message": "get all skill"})
 // 		return
 // 	}
 // 	defer rows.Close()
@@ -20,10 +20,10 @@ package main
 // 		var s Skill
 // 		err := rows.Scan(&s.Key, &s.Name, &s.Description, &s.Logo, pq.Array(&s.Tags))
 // 		if err != nil {
-// 			context.JSON(http.StatusBadRequest, gin.H{})
+// 			c.JSON(http.StatusBadRequest, gin.H{})
 // 			return
 // 		}
 // 		skills = append(skills, s)
 // 	}
-// 	context.JSON(http.StatusOK, skills)
+// 	c.JSON(http.StatusOK, skills)
 // }

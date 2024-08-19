@@ -1,6 +1,7 @@
 package main
 
 import (
+	"cartoon/skill"
 	"context"
 	"database/sql"
 	"errors"
@@ -10,7 +11,6 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
-	"test/skill"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -32,7 +32,7 @@ func main() {
 	}
 	h := &skill.Handler{Db: db}
 	router := gin.Default()
-	skill.SetRouter(router, h)
+	SetRouter(router, h)
 	srv := http.Server{
 		Addr:        ":" + os.Getenv("PORT"),
 		Handler:     router,
@@ -53,4 +53,17 @@ func main() {
 		}
 	}
 	slog.Info("bye")
+}
+
+func SetRouter(router *gin.Engine, h *skill.Handler) {
+	router.GET("/ping", skill.GetPing)
+	router.GET("/api/v1/skills", h.GetAllSkills)
+	router.GET("/api/v1/skills/:key", h.GetSkillById)
+	router.POST("/api/v1/skills", h.CreateSkill)
+	router.PUT("/api/v1/skills/:key", h.UpdateSkill)
+	router.PATCH("/api/v1/skills/:key/action/name", h.UpdateSkillName)
+	router.PATCH("/api/v1/skills/:key/action/description", h.UpdateSkillDescription)
+	router.PATCH("/api/v1/skills/:key/action/logo", h.UpdateSkillLogo)
+	router.PATCH("/api/v1/skills/:key/action/tags", h.UpdateSkillTags)
+	router.DELETE("/api/v1/skills/:key", h.DeleteSkill)
 }

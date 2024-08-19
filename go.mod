@@ -1,4 +1,4 @@
-module test
+module cartoon
 
 go 1.22.6
 
