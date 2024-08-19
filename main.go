@@ -85,10 +85,10 @@ type Skill struct {
 }
 
 type PostSkill struct {
-	Name        string   `json:"name"`
-	Description string   `json:"description"`
-	Logo        string   `json:"logo"`
-	Tags        []string `json:"tags"`
+	Name        string   `json:"name" binding:"required"`
+	Description string   `json:"description" binding:"required"`
+	Logo        string   `json:"logo" binding:"required"`
+	Tags        []string `json:"tags" binding:"required"`
 }
 
 type Successres struct {
@@ -117,7 +117,7 @@ func setRouter(router *gin.Engine, h *handler) {
 func (h *handler) getAllSkills(context *gin.Context) {
 	rows, err := h.db.Query("SELECT key, name, description, logo, tags FROM skill;")
 	if err != nil {
-		context.JSON(http.StatusBadRequest, gin.H{"message": err})
+		context.JSON(http.StatusBadRequest, Failres{"error", "Can not get all skill"})
 		return
 	}
 	defer rows.Close()
@@ -126,7 +126,7 @@ func (h *handler) getAllSkills(context *gin.Context) {
 		var s Skill
 		err := rows.Scan(&s.Key, &s.Name, &s.Description, &s.Logo, pq.Array(&s.Tags))
 		if err != nil {
-			context.JSON(http.StatusBadRequest, gin.H{})
+			context.JSON(http.StatusBadRequest, Failres{"error", "Can not get all skill"})
 			return
 		}
 		skills = append(skills, s)
@@ -136,50 +136,24 @@ func (h *handler) getAllSkills(context *gin.Context) {
 
 func (h *handler) getSkillById(context *gin.Context) {
 	paramkey := context.Param("key")
-	// slog.Info(paramkey)
-	row := h.db.QueryRow(fmt.Sprintf("SELECT key, name, description, logo, tags FROM skill WHERE key = '%v';", paramkey))
-	var s Skill
-	err := row.Scan(&s.Key, &s.Name, &s.Description, &s.Logo, pq.Array(&s.Tags))
-	if err != nil {
-		// TODO error
-		context.JSON(http.StatusBadRequest, err)
-		return
-	}
-	context.JSON(http.StatusOK, Successres{"success", s})
-}
-
-func (h *handler) getSkillByKey(key string) Skill {
-	row := h.db.QueryRow(fmt.Sprintf("SELECT key, name, description, logo, tags FROM skill WHERE key = '%v';", key))
-	var s Skill
-	err := row.Scan(&s.Key, &s.Name, &s.Description, &s.Logo, pq.Array(&s.Tags))
-	if err != nil {
-		// TODO error
-		// context.JSON(http.StatusBadRequest, err)
-		return Skill{}
-	}
-	// context.JSON(http.StatusOK, Successres{"success", s})
-	// context.JSON(http.StatusOK, )
-	return s
+	h.getSkillByKey(paramkey, context)
 }
 
 func (h *handler) createSkill(context *gin.Context) {
 	var newSkill Skill
 	err := context.BindJSON(&newSkill)
 	if err != nil {
-		//TODO error
-		context.JSON(http.StatusBadRequest, err)
+		context.JSON(http.StatusBadRequest, Failres{"error", "Cannot extract data from JSON"})
 		return
 	}
 	stmt, err := h.db.Prepare("INSERT INTO skill (key, name, description, logo, tags) VALUES ($1, $2, $3, $4, $5) returning key;")
 	if err != nil {
-		context.JSON(http.StatusBadRequest, err)
-		//TODO error
+		context.JSON(http.StatusBadRequest, Failres{"error", "Statement error"})
 		return
 	}
 	defer stmt.Close()
 	if _, err := stmt.Exec(newSkill.Key, newSkill.Name, newSkill.Description, newSkill.Logo, pq.Array(newSkill.Tags)); err != nil {
-		context.JSON(http.StatusBadRequest, err)
-		//TODO error
+		context.JSON(http.StatusBadRequest, Failres{"error", "Skill already exists"})
 		return
 	}
 	context.JSON(http.StatusOK, Successres{"success", newSkill})
@@ -189,98 +163,141 @@ func (h *handler) updateSkill(context *gin.Context) {
 	var paramkey = context.Param("key")
 	var s PostSkill
 	if err := context.BindJSON(&s); err != nil {
-		context.JSON(http.StatusBadRequest, err)
-		//TODO error
+		context.JSON(http.StatusBadRequest, Failres{"error", "Cannot extract data from JSON"})
 		return
 	}
-	stmt, err := h.db.Prepare("UPDATE skill SET name = $2, description = $3, logo = $4, tags = $5 WHERE key = $1;")
+	stmt, err := h.db.Prepare("UPDATE skill SET name = $1, description = $2, logo = $3, tags = $4 WHERE key = $5;")
 	if err != nil {
 		context.JSON(http.StatusBadRequest, err)
-		//TODO error
 		return
 	}
 	defer stmt.Close()
-	if _, err := stmt.Exec(paramkey, s.Name, s.Description, s.Logo, pq.Array(s.Tags)); err != nil {
-		context.JSON(http.StatusBadRequest, err)
-		//TODO error
+	if _, err := stmt.Exec(s.Name, s.Description, s.Logo, pq.Array(s.Tags), paramkey); err != nil {
+		context.JSON(http.StatusBadRequest, Failres{"error", "Skill already exists"})
 		return
 	}
-
-	row := h.db.QueryRow(fmt.Sprintf("SELECT key, name, description, logo, tags FROM skill WHERE key = '%v';", paramkey))
-	var updatedSkill Skill
-	err = row.Scan(&updatedSkill.Key, &updatedSkill.Name, &updatedSkill.Description, &updatedSkill.Logo, pq.Array(&updatedSkill.Tags))
-	if err != nil {
-		// TODO error
-		context.JSON(http.StatusBadRequest, err)
-		return
-	}
-	context.JSON(http.StatusOK, Successres{"success", updatedSkill})
+	h.getSkillByKey(paramkey, context)
 }
 
-// type name struct {
-// 	Name string `json:"name"`
-// }
+func (h *handler) getSkillByKey(key string, context *gin.Context) {
+	skill := h.db.QueryRow(fmt.Sprintf("SELECT key, name, description, logo, tags FROM skill WHERE key = '%v';", key))
+	var s Skill
+	err := skill.Scan(&s.Key, &s.Name, &s.Description, &s.Logo, pq.Array(&s.Tags))
+	if err != nil {
+		context.JSON(http.StatusNotFound, Failres{"error", "Skill not found"})
+		return
+	}
+	context.JSON(http.StatusOK, Successres{"success", s})
+}
 
 func (h *handler) updateSkillName(context *gin.Context) {
 	var paramkey = context.Param("key")
-	var name struct{ Name string }
+	var name struct {
+		Name string `json:"name" binding:"required"`
+	}
 	if err := context.BindJSON(&name); err != nil {
-		context.JSON(http.StatusBadRequest, err)
-		//TODO error
+		context.JSON(http.StatusBadRequest, Failres{"error", "Cannot extract data from JSON"})
 		return
 	}
-	stmt, err := h.db.Prepare("UPDATE skill SET name = $2 WHERE key = $1 RETURNING key, name, description, logo, tags;")
+	stmt, err := h.db.Prepare("UPDATE skill SET name = $1 WHERE key = $2;")
 	if err != nil {
-		context.JSON(http.StatusBadRequest, err)
-		//TODO error
+		context.JSON(http.StatusBadRequest, Failres{"error", "Statement error"})
 		return
 	}
 	defer stmt.Close()
-	if _, err := stmt.Exec(paramkey, name.Name); err != nil {
-		context.JSON(http.StatusBadRequest, err)
-		//TODO error
+	if _, err := stmt.Exec(name.Name, paramkey); err != nil {
+		context.JSON(http.StatusBadRequest, Failres{"error", "Not be able to update name"})
 		return
 	}
-
-	updatedskill := h.db.QueryRow(fmt.Sprintf("SELECT key, name, description, logo, tags FROM skill WHERE key = '%v';", paramkey))
-	var updatedSkill Skill
-	err = updatedskill.Scan(&updatedSkill.Key, &updatedSkill.Name, &updatedSkill.Description, &updatedSkill.Logo, pq.Array(&updatedSkill.Tags))
-	if err != nil {
-		// TODO error
-		context.JSON(http.StatusBadRequest, err)
-		return
-	}
-	context.JSON(http.StatusOK, Successres{"success", updatedSkill})
-	// context.JSON(http.StatusOK, row)
-	// row := h.db.QueryRow(fmt.Sprintf("UPDATE skill SET name = %v WHERE key = %v RETURNING key, name, description, logo, tags;", name.Name, paramkey))
-	// err = row.Scan(&s.Key, &s.Name, &s.Description, &s.Logo, pq.Array(&s.Tags))
-	// log.Info
-
+	h.getSkillByKey(paramkey, context)
 }
 
 func (h *handler) updateSkillDescription(context *gin.Context) {
-
+	var paramkey = context.Param("key")
+	var description struct {
+		Description string `json:"description" binding:"required"`
+	}
+	if err := context.BindJSON(&description); err != nil {
+		context.JSON(http.StatusBadRequest, Failres{"error", "Cannot extract data from JSON"})
+		return
+	}
+	stmt, err := h.db.Prepare("UPDATE skill SET description = $1 WHERE key = $2;")
+	if err != nil {
+		context.JSON(http.StatusBadRequest, Failres{"error", "Statement error"})
+		return
+	}
+	defer stmt.Close()
+	fmt.Print("what")
+	if _, err := stmt.Exec(description.Description, paramkey); err != nil {
+		context.JSON(http.StatusBadRequest, Failres{"error", "Not be able to update description"})
+		return
+	}
+	h.getSkillByKey(paramkey, context)
 }
 
 func (h *handler) updateSkillLogo(context *gin.Context) {
-
+	var paramkey = context.Param("key")
+	var logo struct {
+		Logo string `json:"logo" binding:"required"`
+	}
+	if err := context.BindJSON(&logo); err != nil {
+		context.JSON(http.StatusBadRequest, Failres{"error", "Cannot extract data from JSON"})
+		return
+	}
+	stmt, err := h.db.Prepare("UPDATE skill SET logo = $1 WHERE key = $2;")
+	if err != nil {
+		context.JSON(http.StatusBadRequest, Failres{"error", "Statement error"})
+		return
+	}
+	defer stmt.Close()
+	if _, err := stmt.Exec(logo.Logo, paramkey); err != nil {
+		context.JSON(http.StatusBadRequest, Failres{"error", "Not be able to update logo"})
+		return
+	}
+	h.getSkillByKey(paramkey, context)
 }
 
 func (h *handler) updateSkillTags(context *gin.Context) {
+	var paramkey = context.Param("key")
+	var tags struct {
+		Tags []string `json:"tags" binding:"required"`
+	}
+	if err := context.BindJSON(&tags); err != nil {
+		context.JSON(http.StatusBadRequest, Failres{"error", "Cannot extract data from JSON"})
+		return
+	}
+	stmt, err := h.db.Prepare("UPDATE skill SET tags = $1 WHERE key = $2;")
+	if err != nil {
+		context.JSON(http.StatusBadRequest, Failres{"error", "Statement error"})
+		return
+	}
+	defer stmt.Close()
+	if _, err := stmt.Exec(pq.Array(tags.Tags), paramkey); err != nil {
+		context.JSON(http.StatusBadRequest, Failres{"error", "Not be able to update tags"})
+		//TODO error
+		return
+	}
+	h.getSkillByKey(paramkey, context)
 
 }
 
 func (h *handler) deleteSkill(context *gin.Context) {
 	paramkey := context.Param("key")
+	skill := h.db.QueryRow(fmt.Sprintf("SELECT key, name, description, logo, tags FROM skill WHERE key = '%v';", paramkey))
+	var s Skill
+	err := skill.Scan(&s.Key, &s.Name, &s.Description, &s.Logo, pq.Array(&s.Tags))
+	if err != nil {
+		context.JSON(http.StatusNotFound, Failres{"error", "Skill not found"})
+		return
+	}
 	stmt, err := h.db.Prepare("DELETE FROM skill WHERE key = $1;")
 	if err != nil {
-		context.JSON(http.StatusBadRequest, err)
-		//TODO error
+		context.JSON(http.StatusBadRequest, Failres{"error", "Statement error"})
 		return
 	}
 	defer stmt.Close()
 	if _, err := stmt.Exec(paramkey); err != nil {
-		context.JSON(http.StatusBadRequest, Failres{"success", "Skill deleted"})
+		context.JSON(http.StatusBadRequest, Failres{"error", "Not be able to delete skill"})
 		return
 	}
 	context.JSON(http.StatusOK, Successres{"success", "Skill deleted"})
