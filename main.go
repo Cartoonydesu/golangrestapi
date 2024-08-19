@@ -84,6 +84,13 @@ type Skill struct {
 	Tags        []string `json:"tags"`
 }
 
+type PostSkill struct {
+	Name        string   `json:"name"`
+	Description string   `json:"description"`
+	Logo        string   `json:"logo"`
+	Tags        []string `json:"tags"`
+}
+
 type Successres struct {
 	Status string `json:"status"`
 	Data   any    `json:"data"`
@@ -129,7 +136,7 @@ func (h *handler) getAllSkills(context *gin.Context) {
 
 func (h *handler) getSkillById(context *gin.Context) {
 	paramkey := context.Param("key")
-	slog.Info(paramkey)
+	// slog.Info(paramkey)
 	row := h.db.QueryRow(fmt.Sprintf("SELECT key, name, description, logo, tags FROM skill WHERE key = '%v';", paramkey))
 	var s Skill
 	err := row.Scan(&s.Key, &s.Name, &s.Description, &s.Logo, pq.Array(&s.Tags))
@@ -139,6 +146,20 @@ func (h *handler) getSkillById(context *gin.Context) {
 		return
 	}
 	context.JSON(http.StatusOK, Successres{"success", s})
+}
+
+func (h *handler) getSkillByKey(key string) Skill {
+	row := h.db.QueryRow(fmt.Sprintf("SELECT key, name, description, logo, tags FROM skill WHERE key = '%v';", key))
+	var s Skill
+	err := row.Scan(&s.Key, &s.Name, &s.Description, &s.Logo, pq.Array(&s.Tags))
+	if err != nil {
+		// TODO error
+		// context.JSON(http.StatusBadRequest, err)
+		return Skill{}
+	}
+	// context.JSON(http.StatusOK, Successres{"success", s})
+	// context.JSON(http.StatusOK, )
+	return s
 }
 
 func (h *handler) createSkill(context *gin.Context) {
@@ -165,10 +186,75 @@ func (h *handler) createSkill(context *gin.Context) {
 }
 
 func (h *handler) updateSkill(context *gin.Context) {
+	var paramkey = context.Param("key")
+	var s PostSkill
+	if err := context.BindJSON(&s); err != nil {
+		context.JSON(http.StatusBadRequest, err)
+		//TODO error
+		return
+	}
+	stmt, err := h.db.Prepare("UPDATE skill SET name = $2, description = $3, logo = $4, tags = $5 WHERE key = $1;")
+	if err != nil {
+		context.JSON(http.StatusBadRequest, err)
+		//TODO error
+		return
+	}
+	defer stmt.Close()
+	if _, err := stmt.Exec(paramkey, s.Name, s.Description, s.Logo, pq.Array(s.Tags)); err != nil {
+		context.JSON(http.StatusBadRequest, err)
+		//TODO error
+		return
+	}
 
+	row := h.db.QueryRow(fmt.Sprintf("SELECT key, name, description, logo, tags FROM skill WHERE key = '%v';", paramkey))
+	var updatedSkill Skill
+	err = row.Scan(&updatedSkill.Key, &updatedSkill.Name, &updatedSkill.Description, &updatedSkill.Logo, pq.Array(&updatedSkill.Tags))
+	if err != nil {
+		// TODO error
+		context.JSON(http.StatusBadRequest, err)
+		return
+	}
+	context.JSON(http.StatusOK, Successres{"success", updatedSkill})
 }
 
+// type name struct {
+// 	Name string `json:"name"`
+// }
+
 func (h *handler) updateSkillName(context *gin.Context) {
+	var paramkey = context.Param("key")
+	var name struct{ Name string }
+	if err := context.BindJSON(&name); err != nil {
+		context.JSON(http.StatusBadRequest, err)
+		//TODO error
+		return
+	}
+	stmt, err := h.db.Prepare("UPDATE skill SET name = $2 WHERE key = $1 RETURNING key, name, description, logo, tags;")
+	if err != nil {
+		context.JSON(http.StatusBadRequest, err)
+		//TODO error
+		return
+	}
+	defer stmt.Close()
+	if _, err := stmt.Exec(paramkey, name.Name); err != nil {
+		context.JSON(http.StatusBadRequest, err)
+		//TODO error
+		return
+	}
+
+	updatedskill := h.db.QueryRow(fmt.Sprintf("SELECT key, name, description, logo, tags FROM skill WHERE key = '%v';", paramkey))
+	var updatedSkill Skill
+	err = updatedskill.Scan(&updatedSkill.Key, &updatedSkill.Name, &updatedSkill.Description, &updatedSkill.Logo, pq.Array(&updatedSkill.Tags))
+	if err != nil {
+		// TODO error
+		context.JSON(http.StatusBadRequest, err)
+		return
+	}
+	context.JSON(http.StatusOK, Successres{"success", updatedSkill})
+	// context.JSON(http.StatusOK, row)
+	// row := h.db.QueryRow(fmt.Sprintf("UPDATE skill SET name = %v WHERE key = %v RETURNING key, name, description, logo, tags;", name.Name, paramkey))
+	// err = row.Scan(&s.Key, &s.Name, &s.Description, &s.Logo, pq.Array(&s.Tags))
+	// log.Info
 
 }
 
