@@ -72,10 +72,13 @@ func (h *Handler) CreateSkill(context *gin.Context) {
 		return
 	}
 	defer stmt.Close()
+	var mutex = &sync.Mutex{}
+	mutex.Lock()
 	if _, err := stmt.Exec(newSkill.Key, newSkill.Name, newSkill.Description, newSkill.Logo, pq.Array(newSkill.Tags)); err != nil {
 		context.JSON(http.StatusBadRequest, response.Fail{Status: "error", Message: "Skill already exists"})
 		return
 	}
+	mutex.Unlock()
 	context.JSON(http.StatusOK, response.Success{Status: "success", Data: newSkill})
 }
 
@@ -92,10 +95,13 @@ func (h *Handler) UpdateSkill(context *gin.Context) {
 		return
 	}
 	defer stmt.Close()
+	var mutex = &sync.Mutex{}
+	mutex.Lock()
 	if _, err := stmt.Exec(s.Name, s.Description, s.Logo, pq.Array(s.Tags), paramkey); err != nil {
 		context.JSON(http.StatusBadRequest, response.Fail{Status: "error", Message: "Skill already exists"})
 		return
 	}
+	mutex.Unlock()
 	getSkillByKey(h, paramkey, context)
 }
 
@@ -125,10 +131,13 @@ func (h *Handler) UpdateSkillName(context *gin.Context) {
 		return
 	}
 	defer stmt.Close()
+	var mutex = &sync.Mutex{}
+	mutex.Lock()
 	if _, err := stmt.Exec(name.Name, paramkey); err != nil {
 		context.JSON(http.StatusBadRequest, response.Fail{Status: "error", Message: "Not be able to update name"})
 		return
 	}
+	mutex.Unlock()
 	getSkillByKey(h, paramkey, context)
 }
 
@@ -147,10 +156,13 @@ func (h *Handler) UpdateSkillDescription(context *gin.Context) {
 		return
 	}
 	defer stmt.Close()
+	var mutex = &sync.Mutex{}
+	mutex.Lock()
 	if _, err := stmt.Exec(description.Description, paramkey); err != nil {
 		context.JSON(http.StatusBadRequest, response.Fail{Status: "error", Message: "Not be able to update description"})
 		return
 	}
+	mutex.Unlock()
 	getSkillByKey(h, paramkey, context)
 }
 
@@ -169,10 +181,13 @@ func (h *Handler) UpdateSkillLogo(context *gin.Context) {
 		return
 	}
 	defer stmt.Close()
+	var mutex = &sync.Mutex{}
+	mutex.Lock()
 	if _, err := stmt.Exec(logo.Logo, paramkey); err != nil {
 		context.JSON(http.StatusBadRequest, response.Fail{Status: "error", Message: "Not be able to update logo"})
 		return
 	}
+	mutex.Unlock()
 	getSkillByKey(h, paramkey, context)
 }
 
@@ -191,10 +206,13 @@ func (h *Handler) UpdateSkillTags(context *gin.Context) {
 		return
 	}
 	defer stmt.Close()
+	var mutex = &sync.Mutex{}
+	mutex.Lock()
 	if _, err := stmt.Exec(pq.Array(tags.Tags), paramkey); err != nil {
 		context.JSON(http.StatusBadRequest, response.Fail{Status: "error", Message: "Not be able to update tags"})
 		return
 	}
+	mutex.Unlock()
 	getSkillByKey(h, paramkey, context)
 }
 
